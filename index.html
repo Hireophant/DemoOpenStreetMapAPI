@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>VN POI Finder – 5 điểm nổi bật</title>
 
-  <!-- Tailwind (CDN) -->
+  <!-- Tailwind (CDN) – dùng cho giao diện -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Leaflet (OSM) -->
+  <!-- Leaflet (OSM) – thư viện bản đồ -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -21,17 +21,11 @@
     crossorigin=""
   ></script>
 
-  <style>
-    :root { --header-h: 64px; }               /* cao ~64px */
-    html, body { height: 100%; margin: 0; }
-    /* Map chiếm toàn bộ viewport trừ phần header */
-    #map { height: calc(100vh - var(--header-h)); margin-top: var(--header-h); }
-    /* Hạ z-index của Leaflet để không đè header */
-    .leaflet-container { z-index: 0; }
-  </style>
+  <!-- CSS riêng của app -->
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body class="bg-slate-50">
-  <!-- Top bar -->
+  <!-- Top bar: thanh tìm kiếm địa điểm chính -->
   <header class="fixed top-0 left-0 right-0 z-[10000] bg-white/80 backdrop-blur border-b border-slate-200">
     <div class="mx-auto max-w-5xl px-4 py-3 flex items-center gap-3">
       <div class="text-xl font-semibold tracking-tight">VN POI Finder</div>
@@ -44,17 +38,37 @@
             Tìm
           </button>
         </div>
-        <p id="hint" class="absolute -bottom-6 left-1 text-xs text-slate-500">
-          Sử dụng dữ liệu OpenStreetMap (miễn phí). Kết quả: tối đa 5 POI.
-        </p>
       </form>
     </div>
   </header>
 
-  <!-- Map -->
+  <!-- Map chính -->
   <div id="map" class="w-full"></div>
 
-  <!-- Side panel (results) -->
+  <!-- Ô tra cứu & hiển thị thời tiết (ở góc trên bên phải) -->
+  <div class="weather-box">
+    <h2>Tra cứu thời tiết</h2>
+    <label for="cityInput">Nhập địa điểm (ví dụ: Ho Chi Minh City, Vietnam):</label>
+    <input id="cityInput" type="text" placeholder="Ho Chi Minh City, Vietnam">
+    <button id="searchWeatherBtn">Xem thời tiết</button>
+
+    <p id="weatherError" style="color: red;"></p>
+
+    <div id="weatherResult" style="display: none; margin-top: 10px;">
+      <h3>Thời tiết hiện tại ở <span id="weatherCityName"></span></h3>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <img id="weatherIcon" alt="" style="width: 60px; height: 60px; display: none;">
+        <div>
+          <p>Nhiệt độ: <span id="weatherTemp"></span> °C</p>
+          <p>Độ ẩm: <span id="weatherHumidity"></span>%</p>
+          <p>Tốc độ gió: <span id="weatherWind"></span> m/s</p>
+          <p>Mô tả: <span id="weatherDescription"></span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel hiển thị 5 POI nổi bật -->
   <aside id="panel" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[10001] w-[min(92vw,680px)] bg-white rounded-2xl shadow-xl ring-1 ring-slate-200 p-3 hidden">
     <div class="flex items-center justify-between px-2 py-1">
       <h2 class="font-semibold">Top 5 điểm gần <span id="areaName" class="font-semibold text-slate-700"></span></h2>
@@ -63,213 +77,12 @@
     <ul id="results" class="divide-y divide-slate-200"></ul>
   </aside>
 
-  <script>
-    // --- Map init ---
-    const map = L.map('map', { zoomControl: false });
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-    const vnCenter = [14.0583, 108.2772];
-    map.setView(vnCenter, 5);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
-
-    let poiLayer = L.layerGroup().addTo(map);
-
-    // --- DOM refs ---
-    const form = document.getElementById('searchForm');
-    const input = document.getElementById('placeInput');
-    const panel = document.getElementById('panel');
-    const results = document.getElementById('results');
-    const areaNameEl = document.getElementById('areaName');
-    const closePanelBtn = document.getElementById('closePanel');
-
-    closePanelBtn.addEventListener('click', () => panel.classList.add('hidden'));
-
-    // Helper: marker
-    function addMarker(lat, lon, name, desc) {
-      const m = L.marker([lat, lon]);
-      m.bindPopup(`<b>${name || 'Không rõ tên'}</b><br/>${desc || ''}`);
-      m.addTo(poiLayer);
-      return m;
-    }
-
-    function listItemTemplate(i, name, tags = {}, dist = null) {
-      const sub = [
-        tags.tourism || tags.amenity || tags.historic || tags.leisure || '',
-        tags['addr:street'] || '',
-      ].filter(Boolean).join(' · ');
-      const d = dist ? ` (~${Math.round(dist)}m)` : '';
-      return `<li class="py-2 px-2 flex gap-3 hover:bg-slate-50 rounded-xl">
-        <div class="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center text-sm">${i}</div>
-        <div class="flex-1">
-          <div class="font-medium">${name || 'Không rõ tên'}${d}</div>
-          <div class="text-xs text-slate-500">${sub}</div>
-        </div>
-      </li>`;
-    }
-
-    // --- Geocode (Nominatim) ---
-    async function geocodeVN(q) {
-      const url = new URL('https://nominatim.openstreetmap.org/search');
-      url.searchParams.set('format', 'json');
-      url.searchParams.set('q', q);
-      url.searchParams.set('countrycodes', 'vn');
-      url.searchParams.set('limit', '1');
-      const res = await fetch(url, { headers: { 'Accept-Language': 'vi' } });
-      if (!res.ok) throw new Error('Không truy vấn được Nominatim');
-      const data = await res.json();
-      if (!data.length) throw new Error('Không tìm thấy địa điểm phù hợp tại Việt Nam');
-      const p = data[0];
-      return { name: p.display_name, lat: parseFloat(p.lat), lon: parseFloat(p.lon) };
-    }
-
-    // --- Overpass: lấy 5 POI quanh toạ độ ---
-    async function fetchPOIs(lat, lon) {
-      const radius = 6000; // m
-      const query = `[
-        out:json][timeout:25];
-        (
-          node(around:${radius},${lat},${lon})[tourism];
-          node(around:${radius},${lat},${lon})[amenity];
-          node(around:${radius},${lat},${lon})[historic];
-          way(around:${radius},${lat},${lon})[tourism];
-          way(around:${radius},${lat},${lon})[amenity];
-          way(around:${radius},${lat},${lon})[historic];
-          relation(around:${radius},${lat},${lon})[tourism];
-          relation(around:${radius},${lat},${lon})[amenity];
-          relation(around:${radius},${lat},${lon})[historic];
-        );
-        out center 20;`;
-
-      const res = await fetch('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ data: query }).toString(),
-      });
-      if (!res.ok) throw new Error('Overpass API lỗi hoặc giới hạn lưu lượng.');
-      const data = await res.json();
-
-      const pts = (data.elements || []).map(el => {
-        const c = el.center || el; // node có lat/lon; way/relation dùng center
-        return {
-          id: el.id,
-          lat: c.lat,
-          lon: c.lon,
-          tags: el.tags || {},
-          name: (el.tags && (el.tags['name:vi'] || el.tags.name)) || 'POI',
-        };
-      }).filter(p => p.lat && p.lon);
-
-      const score = p => (p.tags.tourism ? 100 : 0) + (p.tags.amenity ? 60 : 0) + (p.tags.historic ? 40 : 0) + (p.name ? 20 : 0);
-      const dist = p => Math.hypot(p.lat - lat, p.lon - lon);
-      pts.sort((a,b) => (score(b) - score(a)) || (dist(a) - dist(b)));
-      return pts.slice(0, 5);
-    }
-
-    function haversine(lat1, lon1, lat2, lon2) {
-      const toRad = d => d * Math.PI / 180;
-      const R = 6371000; // m
-      const dLat = toRad(lat2-lat1);
-      const dLon = toRad(lon2-lon1);
-      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-      return 2 * R * Math.asin(Math.sqrt(a));
-    }
-
-    // --- Main flow ---
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const q = input.value.trim();
-      if (!q) return;
-
-      // Clear
-      poiLayer.clearLayers();
-      results.innerHTML = '';
-      panel.classList.add('hidden');
-      document.getElementById('searchBtn').disabled = true;
-
-      try {
-        const place = await geocodeVN(q);
-        areaNameEl.textContent = place.name;
-        map.flyTo([place.lat, place.lon], 13, { duration: 0.8 });
-
-        const pois = await fetchPOIs(place.lat, place.lon);
-        if (!pois.length) throw new Error('Chưa có POI phù hợp trong bán kính gần.');
-
-        // Render markers & list
-        const markers = [];
-        pois.forEach((p) => {
-          const m = addMarker(p.lat, p.lon, p.name, Object.values(p.tags).slice(0,3).join(' · '));
-          markers.push(m);
-        });
-
-        // Fit bounds
-        const g = L.featureGroup(markers);
-        map.fitBounds(g.getBounds().pad(0.2));
-
-        // Build list
-        results.innerHTML = pois.map((p, idx) => {
-          const d = haversine(place.lat, place.lon, p.lat, p.lon);
-          return listItemTemplate(idx+1, p.name, p.tags, d);
-        }).join('');
-
-        panel.classList.remove('hidden');
-
-        // Save recent searches (local only)
-        const recent = JSON.parse(localStorage.getItem('vn-poi-recent') || '[]');
-        recent.unshift({ q, ts: Date.now() });
-        localStorage.setItem('vn-poi-recent', JSON.stringify(recent.slice(0, 8)));
-      } catch (err) {
-        alert(err.message || 'Đã có lỗi xảy ra.');
-        console.error(err);
-      } finally {
-        document.getElementById('searchBtn').disabled = false;
-      }
-    });
-
-    // First load: center VN
-    addMarker(vnCenter[0], vnCenter[1], 'Việt Nam', 'Bắt đầu bằng cách nhập địa điểm.');
-  </script>
-
-  <!-- Firebase (tuỳ chọn) -->
+  <!-- Firebase (CDN) – để dùng auth + firestore -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyAVuKHMYVzb1FB3uzlP-3l9e3C63nkmECE",
-      authDomain: "fir-openstreetmap.firebaseapp.com",
-      projectId: "fir-openstreetmap",
-      storageBucket: "fir-openstreetmap.firebasestorage.app",
-      messagingSenderId: "956523695763",
-      appId: "1:956523695763:web:c5bcdcf2daabbd479c8766",
-      measurementId: "G-3KZHPMWE65"
-    };
-    try { firebase.initializeApp(firebaseConfig); } catch(e) {}
-    const auth = firebase.auth();
-    const db = firebase.firestore();
 
-    async function signIn() {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      await auth.signInWithPopup(provider);
-    }
-    async function signOut() { await auth.signOut(); }
-
-    auth.onAuthStateChanged((u) => {
-      console.log('auth user:', u?.email || 'signed out');
-    });
-
-    async function logQuery(q) {
-      const u = auth.currentUser;
-      if (!u) return;
-      await db.collection('queries').add({
-        q, user: u.uid, email: u.email,
-        ts: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    }
-    // Khi muốn log: gọi logQuery(q) sau khi submit thành công (đăng nhập rồi).
-  </script>
+  <!-- JS chính của ứng dụng (map, POI, weather, firebase...) -->
+  <script src="main.js"></script>
 </body>
 </html>

@@ -1,0 +1,61 @@
+/* Biến CSS cho chiều cao header */
+:root {
+  --header-h: 64px;  /* cao ~64px */
+}
+
+/* Cho body chiếm toàn bộ chiều cao màn hình, bỏ margin mặc định */
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+/* Map chiếm toàn bộ viewport trừ phần header cố định phía trên */
+#map {
+  height: calc(100vh - var(--header-h));
+  margin-top: var(--header-h);
+}
+
+/* Hạ z-index của Leaflet để không đè lên header và các overlay khác */
+.leaflet-container {
+  z-index: 0;
+}
+
+/* Hộp thời tiết: đặt cố định ở góc trên bên phải */
+.weather-box {
+  position: fixed;
+  top: calc(var(--header-h) + 8px); /* dưới header một chút */
+  right: 16px;
+  z-index: 9001;
+  background: white;
+  padding: 10px 12px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.18);
+  max-width: 320px;
+  font-size: 14px;
+}
+
+/* Tiêu đề trong box thời tiết */
+.weather-box h2 {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+/* Ô input trong box thời tiết */
+.weather-box input {
+  border: 1px solid #e5e7eb;       /* xám nhạt */
+  border-radius: 8px;
+  padding: 4px 8px;
+  width: 100%;
+  margin: 4px 0;
+}
+
+/* Nút bấm trong box thời tiết */
+.weather-box button {
+  margin-top: 4px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #0f172a;              /* xanh đậm gần đen */
+  color: white;
+  font-size: 12px;
+}
