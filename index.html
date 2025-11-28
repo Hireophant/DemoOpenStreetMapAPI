@@ -67,6 +67,25 @@
       </div>
     </div>
   </div>
+    <!-- Popup dịch thuật nhỏ -->
+  <div id="translateBox" class="translate-box hidden">
+    <h2>🈹 Dịch nhanh</h2>
+    <label for="enInput">Nhập câu tiếng Anh:</label>
+    <textarea id="enInput" rows="3" placeholder="Nhập câu tiếng Anh..."></textarea>
+    <button id="translateBtn">Dịch sang tiếng Việt</button>
+
+    <p id="translateError" style="color:red;"></p>
+
+    <div id="translateResult" style="display:none; margin-top:10px;">
+      <h3>Kết quả dịch:</h3>
+      <p id="viOutput" class="text-sm text-slate-700"></p>
+    </div>
+  </div>
+
+  <button id="toggleTranslateBox" class="translate-btn">
+    🌐 Dịch
+  </button>
+
 
   <!-- Panel hiển thị 5 POI nổi bật -->
   <aside id="panel" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[10001] w-[min(92vw,680px)] bg-white rounded-2xl shadow-xl ring-1 ring-slate-200 p-3 hidden">

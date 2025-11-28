@@ -427,3 +427,62 @@ document
         err.message || 'Có lỗi xảy ra khi lấy dữ liệu thời tiết.';
     }
   });
+  // ======================================================
+// 4. TÍNH NĂNG DỊCH THUẬT (EN -> VI)
+// ======================================================
+
+// Các phần tử DOM liên quan
+const translateBox = document.getElementById('translateBox');
+const toggleTranslateBtn = document.getElementById('toggleTranslateBox');
+const translateBtn = document.getElementById('translateBtn');
+const enInput = document.getElementById('enInput');
+const viOutput = document.getElementById('viOutput');
+const translateError = document.getElementById('translateError');
+const translateResult = document.getElementById('translateResult');
+
+// Nút mở/đóng popup
+toggleTranslateBtn.addEventListener('click', () => {
+  translateBox.classList.toggle('hidden');
+});
+
+// Hàm gọi API Google Translate miễn phí
+async function translateToVietnamese(text) {
+  const baseUrl = 'https://translate.googleapis.com/translate_a/single';
+  const params = new URLSearchParams({
+    client: 'gtx',
+    sl: 'en',
+    tl: 'vi',
+    dt: 't',
+    q: text
+  });
+
+  const res = await fetch(`${baseUrl}?${params.toString()}`);
+  if (!res.ok) throw new Error('Lỗi khi gọi API dịch thuật.');
+  
+  const data = await res.json();
+  return data[0].map(seg => seg[0]).join('');
+}
+
+// Nút "Dịch sang tiếng Việt"
+translateBtn.addEventListener('click', async () => {
+  const text = enInput.value.trim();
+  translateError.textContent = '';
+  translateResult.style.display = 'none';
+
+  if (!text) {
+    translateError.textContent = 'Vui lòng nhập câu tiếng Anh.';
+    return;
+  }
+
+  try {
+    translateError.textContent = 'Đang dịch...';
+    const translated = await translateToVietnamese(text);
+    viOutput.textContent = translated;
+    translateError.textContent = '';
+    translateResult.style.display = 'block';
+  } catch (err) {
+    console.error(err);
+    translateError.textContent = 'Không thể dịch. Vui lòng thử lại.';
+  }
+});
+

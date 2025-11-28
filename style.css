@@ -59,3 +59,69 @@ body {
   color: white;
   font-size: 12px;
 }
+
+/* === Popup Dịch thuật nhỏ === */
+/* Khung dịch nhanh */
+.translate-box {
+  position: fixed;
+  top: calc(var(--header-h) + 70px); /* ngay dưới nút Dịch */
+  left: 16px; /* sát bên trái giống nút */
+  width: 280px;
+  padding: 14px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.15);
+  z-index: 9003;  /* cao hơn nút */
+}
+
+.translate-box.hidden {
+  display: none;
+}
+
+
+.translate-box h2 {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.translate-box textarea {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 6px 8px;
+  resize: none;
+  font-family: inherit;
+  margin-bottom: 6px;
+}
+
+.translate-box button {
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: white;
+  font-size: 12px;
+}
+
+/* Nút mở popup dịch — góc trái giống style khung thời tiết */
+.translate-btn {
+  position: fixed;
+  top: calc(var(--header-h) + 20px); /* cùng chiều cao với box thời tiết */
+  left: 16px;                       /* sát bên trái */
+  z-index: 9002;
+  background: #0f172a;
+  color: white;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.translate-btn:hover {
+  opacity: 0.85;
+}
+
+.hidden {
+  display: none;
+}
