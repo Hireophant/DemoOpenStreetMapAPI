@@ -39,7 +39,24 @@
           </button>
         </div>
       </form>
+      <!-- ========= THÊM MỚI: khu vực hiển thị account ========= -->
+    <div id="authSection" class="flex items-center gap-2">
+      <div id="authUserInfo" class="hidden text-sm text-slate-700">
+        Xin chào, <span id="authUserEmail" class="font-semibold"></span>
+      </div>
+
+      <button id="openAuthModalBtn" type="button"
+              class="rounded-xl px-3 py-1.5 text-sm border border-slate-300 text-slate-700 hover:bg-slate-100">
+        Đăng nhập / Đăng ký
+      </button>
+
+      <button id="signOutBtn" type="button"
+              class="hidden rounded-xl px-3 py-1.5 text-sm bg-red-500 text-white hover:bg-red-600">
+        Đăng xuất
+      </button>
     </div>
+    <!-- ========= HẾT PHẦN THÊM ========= -->
+  </div>
   </header>
 
   <!-- Map chính -->
@@ -87,6 +104,7 @@
   </button>
 
 
+
   <!-- Panel hiển thị 5 POI nổi bật -->
   <aside id="panel" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[10001] w-[min(92vw,680px)] bg-white rounded-2xl shadow-xl ring-1 ring-slate-200 p-3 hidden">
     <div class="flex items-center justify-between px-2 py-1">
@@ -95,7 +113,57 @@
     </div>
     <ul id="results" class="divide-y divide-slate-200"></ul>
   </aside>
+  
+  <!-- ========= THÊM MỚI: Modal đăng nhập / đăng ký ========= -->
+  <div id="authModal" class="fixed inset-0 z-[10002] bg-black/40 flex items-center justify-center hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">Tài khoản</h2>
+        <button id="closeAuthModalBtn" class="text-slate-500 hover:text-slate-800">&times;</button>
+      </div>
 
+      <div class="space-y-3">
+        <label class="block text-sm">
+          Email
+          <input id="authEmail" type="email"
+                 class="mt-1 w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-400"
+                 placeholder="you@example.com" />
+        </label>
+
+        <label class="block text-sm">
+          Mật khẩu
+          <input id="authPassword" type="password"
+                 class="mt-1 w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-400"
+                 placeholder="Ít nhất 6 ký tự" />
+        </label>
+
+        <p id="authError" class="text-xs text-red-500 min-h-[1rem]"></p>
+
+        <div class="flex gap-2">
+          <button id="signUpBtn" type="button"
+                  class="flex-1 rounded-xl px-3 py-2 text-sm bg-slate-900 text-white hover:bg-slate-800">
+            Đăng ký
+          </button>
+          <button id="signInBtn" type="button"
+                  class="flex-1 rounded-xl px-3 py-2 text-sm border border-slate-300 hover:bg-slate-50">
+            Đăng nhập
+          </button>
+        </div>
+
+        <div class="flex items-center my-3">
+          <div class="flex-1 h-px bg-slate-200"></div>
+          <span class="px-2 text-xs text-slate-400">hoặc</span>
+          <div class="flex-1 h-px bg-slate-200"></div>
+        </div>
+
+        <button id="googleSignInBtn" type="button"
+                class="w-full rounded-xl px-3 py-2 text-sm border border-slate-300 hover:bg-slate-50 flex items-center justify-center gap-2">
+          <span>Đăng nhập bằng Google</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- ========= HẾT PHẦN THÊM ========= -->
   <!-- Firebase (CDN) – để dùng auth + firestore -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>

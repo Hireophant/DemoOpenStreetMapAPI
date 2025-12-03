@@ -240,6 +240,12 @@ form.addEventListener('submit', async (e) => {
     );
     recent.unshift({ q, ts: Date.now() });
     localStorage.setItem('vn-poi-recent', JSON.stringify(recent.slice(0, 8)));
+    // 8) Ghi log vào Firestore nếu user đã đăng nhập
+    try {
+      await logQuery(q);
+    } catch (logErr) {
+      console.warn('Không ghi được log Firestore:', logErr);
+    }
   } catch (err) {
     alert(err.message || 'Đã có lỗi xảy ra.');
     console.error(err);
@@ -256,18 +262,18 @@ addMarker(
   'Bắt đầu bằng cách nhập địa điểm.'
 );
 
-// ===============================================
-// 2. FIREBASE (tuỳ chọn) – auth + log query search
+// ===============================================x
+// 2. FIREBASE – auth (email/password + Google) + log query search
 // ===============================================
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyAVuKHMYVzb1FB3uzlP-3l9e3C63nkmECE',
-  authDomain: 'fir-openstreetmap.firebaseapp.com',
-  projectId: 'fir-openstreetmap',
-  storageBucket: 'fir-openstreetmap.firebasestorage.app',
-  messagingSenderId: '956523695763',
-  appId: '1:956523695763:web:c5bcdcf2daabbd479c8766',
-  measurementId: 'G-3KZHPMWE65',
+  apiKey: "AIzaSyAVuKHMYVzb1FB3uzlP-3l9e3C63nkmECE",
+  authDomain: "fir-openstreetmap.firebaseapp.com",
+  projectId: "fir-openstreetmap",
+  storageBucket: "fir-openstreetmap.firebasestorage.app",
+  messagingSenderId: "956523695763",
+  appId: "1:956523695763:web:c5bcdcf2daabbd479c8766",
+  measurementId: "G-3KZHPMWE65"
 };
 
 // Khởi tạo Firebase (dùng try/catch để tránh lỗi nếu init nhiều lần)
@@ -278,20 +284,137 @@ try {
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Hàm đăng nhập bằng Google
-async function signIn() {
+// ==== DOM cho phần auth (nút trên header + modal) ====
+const authModal = document.getElementById('authModal');
+const openAuthModalBtn = document.getElementById('openAuthModalBtn');
+const closeAuthModalBtn = document.getElementById('closeAuthModalBtn');
+const signOutBtn = document.getElementById('signOutBtn');
+const authUserInfo = document.getElementById('authUserInfo');
+const authUserEmailEl = document.getElementById('authUserEmail');
+const authEmailInput = document.getElementById('authEmail');
+const authPasswordInput = document.getElementById('authPassword');
+const authErrorEl = document.getElementById('authError');
+const googleSignInBtn = document.getElementById('googleSignInBtn');
+const signUpBtn = document.getElementById('signUpBtn');
+const signInBtn = document.getElementById('signInBtn');
+
+// Mở / đóng modal
+openAuthModalBtn.addEventListener('click', () => {
+  authErrorEl.textContent = '';
+  authModal.classList.remove('hidden');
+});
+
+closeAuthModalBtn.addEventListener('click', () => {
+  authModal.classList.add('hidden');
+});
+
+// Click ra ngoài phần hộp trắng để đóng
+authModal.addEventListener('click', (e) => {
+  if (e.target === authModal) authModal.classList.add('hidden');
+});
+
+// ========= CÁC HÀM AUTH =========
+
+// Đăng ký tài khoản email/password
+async function signUpWithEmailPassword(email, password) {
+  return auth.createUserWithEmailAndPassword(email, password);
+}
+
+// Đăng nhập email/password
+async function signInWithEmailPassword(email, password) {
+  return auth.signInWithEmailAndPassword(email, password);
+}
+
+// Đăng nhập bằng Google (popup)
+async function signInWithGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
-  await auth.signInWithPopup(provider);
+  return auth.signInWithPopup(provider);
 }
 
-// Hàm đăng xuất
-async function signOut() {
-  await auth.signOut();
+// Đăng xuất
+async function signOutFirebase() {
+  return auth.signOut();
 }
 
-// Log trạng thái auth ra console
+// Bắt sự kiện nút Đăng ký
+signUpBtn.addEventListener('click', async () => {
+  const email = authEmailInput.value.trim();
+  const password = authPasswordInput.value.trim();
+  authErrorEl.textContent = '';
+
+  if (!email || !password) {
+    authErrorEl.textContent = 'Vui lòng nhập đầy đủ email và mật khẩu.';
+    return;
+  }
+  if (password.length < 6) {
+    authErrorEl.textContent = 'Mật khẩu phải từ 6 ký tự trở lên.';
+    return;
+  }
+
+  try {
+    await signUpWithEmailPassword(email, password);
+    // Sau khi đăng ký thành công, Firebase sẽ tự đăng nhập và onAuthStateChanged sẽ chạy
+  } catch (err) {
+    console.error(err);
+    authErrorEl.textContent = err.message;
+  }
+});
+
+// Bắt sự kiện nút Đăng nhập
+signInBtn.addEventListener('click', async () => {
+  const email = authEmailInput.value.trim();
+  const password = authPasswordInput.value.trim();
+  authErrorEl.textContent = '';
+
+  if (!email || !password) {
+    authErrorEl.textContent = 'Vui lòng nhập đầy đủ email và mật khẩu.';
+    return;
+  }
+
+  try {
+    await signInWithEmailPassword(email, password);
+  } catch (err) {
+    console.error(err);
+    authErrorEl.textContent = err.message;
+  }
+});
+
+// Nút đăng nhập bằng Google
+googleSignInBtn.addEventListener('click', async () => {
+  authErrorEl.textContent = '';
+  try {
+    await signInWithGoogle();
+  } catch (err) {
+    console.error(err);
+    authErrorEl.textContent = err.message;
+  }
+});
+
+// Nút Đăng xuất
+signOutBtn.addEventListener('click', async () => {
+  try {
+    await signOutFirebase();
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+// Lắng nghe trạng thái đăng nhập và cập nhật UI
 auth.onAuthStateChanged((u) => {
   console.log('auth user:', u?.email || 'signed out');
+
+  if (u) {
+    authUserEmailEl.textContent = u.email || u.displayName || 'Người dùng';
+    authUserInfo.classList.remove('hidden');
+    signOutBtn.classList.remove('hidden');
+    openAuthModalBtn.classList.add('hidden');
+    authModal.classList.add('hidden');    // ẩn modal nếu đang mở
+    authErrorEl.textContent = '';
+  } else {
+    authUserInfo.classList.add('hidden');
+    signOutBtn.classList.add('hidden');
+    openAuthModalBtn.classList.remove('hidden');
+  }
 });
 
 // Ghi log query vào Firestore (nếu đã đăng nhập)
@@ -305,7 +428,7 @@ async function logQuery(q) {
     ts: firebase.firestore.FieldValue.serverTimestamp(),
   });
 }
-// Khi muốn log: gọi logQuery(q) sau khi submit thành công (đăng nhập rồi).
+
 
 // ==================================================
 // 3. OPENWEATHER API – lấy & hiển thị dữ liệu thời tiết
